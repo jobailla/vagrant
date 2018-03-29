@@ -1,27 +1,41 @@
 #!/bin/bash
 
+ROOT=sudo
+
 mkdir_vagrant() {
-	local DIR=$1/vagrant_debian
+	local DIR=$1
 	echo $DIR
-	mkdir -p $DIR
+	$ROOT mkdir -p $DIR
 	export VAGRANT_HOME=$DIR
 	cd $DIR
 }
 
 init_vagrant() {
-	vagrant up
-	vagrant plugin install vagrant-vbguest
-	vagrant vb-guest
-	vagrant reload
+	$ROOT vagrant up
+	$ROOT vagrant plugin install vagrant-vbguest
+	$ROOT vagrant vb-guest
+	$ROOT vagrant provision
+	$ROOT vagrant reload
 }
 
 fill_vagrant_file() {
 # This function is intentionally not well formatted because 
 # there cannot be any space before the end string of a heredoc.
-cat > Vagrantfile << EOM
-	Vagrant.configure("2") do |config|
-	config.vm.box = "debian/stretch64"
-	config.vm.synced_folder ".", "/git"
+$ROOT cat > Vagrantfile << EOM
+VAGRANTFILE_API_VERSION = "2"
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "debian/jessie64"
+  config.vm.provision :shell, inline: "apt-get -y update"
+  config.vm.provision :shell, inline: "apt-get -y upgrade"
+  config.vm.provision :shell, inline: "apt-get -y install git"
+  config.vm.provision :shell, inline: "apt-get -y install zsh"
+  config.vm.provision :shell, inline: "apt-get -y install vim"
+  config.vm.provision :shell, inline: "apt-get -y install htop"
+  config.vm.provision :shell, privileged: false,
+    inline: "git clone git://github.com/robbyrussell/oh-my-zsh.git ~/.oh-my-zsh"
+  config.vm.provision :shell, privileged: false,
+    inline: "cp ~/.oh-my-zsh/templates/zshrc.zsh-template ~/.zshrc"
+  config.vm.provision :shell, inline: "chsh -s /bin/zsh vagrant"
 end
 EOM
 # end string
@@ -34,5 +48,5 @@ if [ $# -eq 0 ]
 		mkdir_vagrant $1
 		fill_vagrant_file
 		init_vagrant
-		vagrant ssh
+		$ROOT vagrant ssh
 fi
